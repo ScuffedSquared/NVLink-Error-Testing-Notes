@@ -375,3 +375,27 @@ GPU 00000000:61:00.0
                 Texture Shared            : N/A
                 CBU                       : 0
                 Total                     : 0
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Issue Summary:
+I am requesting an exchange for the SXM2 carrier board. The current board has a dead or degraded physical NVLink trace connecting Slot 0 and Slot 1, which results in continuous NCCL crashes during multi-GPU workloads (like vLLM).
+
+Technical Diagnosis & Symptoms:
+Diagnostics using nvidia-smi nvlink -e show massive, unrecoverable communication failures localized to a single physical pathway on the board:
+
+Slot 1 (Link 0): Accumulates maximum CRC Errors (65,535) while the system is at idle. This indicates severe physical signal corruption, as even background heartbeat signals are arriving garbled.
+
+Slot 0 (Link 3): Accumulates maximum Replay Errors (65,535) the moment a workload starts. It repeatedly attempts to send data across the corrupted link to Slot 1 until the error counter maxes out, ultimately crashing the container/system.
+
+Note: Link 3 on Slot 0 and Link 0 on Slot 1 are the opposite ends of the exact same physical embedded trace on the carrier board.
+
+Troubleshooting Performed:
+To ensure this was not a GPU or mounting pressure issue, I have performed extensive hardware isolation testing:
+
+I have physically reseated, re-torqued, and swapped a pool of 4 different V100 GPUs across these slots more than 8 separate times.
+
+The Result: The errors do not follow the GPUs. The exact same NVLink error pattern remains permanently pinned to the physical slots on the board (Slot 0/Link 3 and Slot 1/Link 0), regardless of which known-good GPUs are installed.
+
+Conclusion:
+Because the failure is strictly tied to the physical slots rather than the GPUs, the issue is definitively a hardware defect on the carrier board itself—likely a damaged trace within the PCB or a defective mezzanine connector between Slot 0 and Slot 1.
